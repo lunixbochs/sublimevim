@@ -121,6 +121,7 @@ class VimColon(VimInsertHook):
 		content = content.replace(':', '', 1)
 		if not content: return
 
+		view = self.view
 		sel = view.sel()
 		line = None
 
