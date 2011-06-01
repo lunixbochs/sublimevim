@@ -210,12 +210,15 @@ class View(Wrapper): # this is where the logic happens
 
 		elif char == 'o':
 			for cur in sel:
-				line = view.full_line(cur.a)
-				self.insert(edit, line.b, '\n')
+				line = view.line(cur.a)
+				next = sublime.Region(line.b+1, line.b+1)
 
-				next = sublime.Region(line.b, line.b)
-				sel.subtract(cur)
-				sel.add(next)
+				if view.visible_region().contains(next):
+
+					self.insert(edit, line.b, '\n')
+				else:
+					self.insert(edit, line.b, '\n')
+					sel.add(next)
 				mode = 'insert'
 		
 		elif char == 'u':
