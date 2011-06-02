@@ -3,6 +3,10 @@
 	{ "keys": ["/"], "command": "vim_slash" },
 	{ "keys": ["$"], "command": "vim_dollar" },
 	{ "keys": ["escape"], "command": "vim_escape" },
+	{ "keys": ["left"], "command": "vim_left" },
+	{ "keys": ["down"], "command": "vim_down" },
+	{ "keys": ["up"], "command": "vim_up" },
+	{ "keys": ["right"], "command": "vim_right" },
 
 	{ "keys": ["a"], "command": "vim_a" },
 	{ "keys": ["b"], "command": "vim_b" },

@@ -504,8 +504,15 @@ class VimSlash(VimInsertHook):
 
 class VimChar(VimInsertHook):
 	def hook(self, view, edit):
-		self.get_view().key_char(edit, self.char)
+		view.key_char(edit, self.char)
 		return True
+
+class VimArrow(VimHook):
+	def hook(self, view, edit):
+		if self.direction   == 'left': view.run_command('move', {"by": "characters", "forward": False})
+		elif self.direction == 'down': view.run_command('move', {"by": "lines", "forward": True})
+		elif self.direction == 'up': view.run_command('move', {"by": "lines", "forward": False})
+		elif self.direction == 'right': view.run_command('move', {"by": "characters", "forward": True})
 
 # tracks open views
 class Vim(sublime_plugin.EventListener):
@@ -538,5 +545,10 @@ for char in string.letters:
 for num in string.digits:
 	name = 'Vim_' + num
 	add_hook(name, VimChar, char=num)
+
+for d in ('up', 'down', 'left', 'right'):
+	name = 'Vim' + d.capitalize()
+
+	add_hook(name, VimArrow, direction=d)
 
 add_hook('Vim_dollar', VimChar, char='$')
