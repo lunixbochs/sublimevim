@@ -1,6 +1,7 @@
 import sublime
 import sublime_plugin
 import string
+import re
 
 class WithEdit:
 	def __init__(self, view):
@@ -145,12 +146,6 @@ class View(InsertView): # this is where the logic happens
 	
 	def find_replace(self, edit, string):
 		view.run_command('single_selection')
-		sel = self.sel()
-		print sel[0].b
-		found = self.find(string, sel[0].b)
-		if found:
-			sel.subtract(sel[0])
-			sel.add(found)
 	
 	def save(self):
 		self.run_command('save')
@@ -188,7 +183,7 @@ class View(InsertView): # this is where the logic happens
 			line = int(string)
 
 		elif string == 'w':
-			view.save()
+			self.save()
 
 		elif string == 'wq':
 			view.run_command('save')
@@ -459,7 +454,7 @@ class VimSlash(VimInsertHook):
 		content = content.replace('/', '', 1)
 		view = self.get_view()
 		with view.edit() as edit:
-			view.key_slash(content, edit)
+			view.key_slash(edit, content)
 
 	def on_change(self, content):
 		if not content.startswith('/'):
