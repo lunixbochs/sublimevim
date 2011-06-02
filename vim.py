@@ -120,6 +120,7 @@ class View(InsertView): # this is where the logic happens
 		'delete_char',
 		'delete_line',
 		'edit',
+		'escape',
 		'find_replace',
 		'key_escape',
 		'key_slash',
@@ -133,7 +134,7 @@ class View(InsertView): # this is where the logic happens
 		return WithEdit(self)
 
 	def set_mode(self, mode=None):
-		if mode:
+		if mode and mode != self.mode:
 			self.cmd = ''
 			self.mode = mode
 		
@@ -223,7 +224,7 @@ class View(InsertView): # this is where the logic happens
 		if self.mode != 'command':
 			self.set_mode('command')
 		else:
-			self.escape(self, edit)
+			self.escape()
 		return True
 
 	def key_char(self, edit, char):
@@ -297,10 +298,26 @@ class View(InsertView): # this is where the logic happens
 
 		elif char == 'p':
 			if self.yank:
+				for cur in sel:
+					sel.subtract(cur)
+					p = view.full_line(cur.b).b
+					sel.add(sublime.Region(p, p))
 				self.natural_insert('\n'.join(self.yank))
+
+				for cur in sel:
+					sel.subtract(cur)
+					p = view.line(view.line(cur.b).a-1).a
+					sel.add(sublime.Region(p, p))
 		
 		elif char == 'P':
-			pass
+			if self.yank:
+				old = [cur for cur in sel]
+				self.natural_insert('\n'.join(self.yank))
+
+				sel.clear()
+				for cur in old:
+					sel.add(cur)
+
 
 		elif char in ('c', 'd', 'y'):
 			if self.cmd:
@@ -308,16 +325,20 @@ class View(InsertView): # this is where the logic happens
 					if char == 'd':
 						self.yank = []
 						for cur in sel:
-							self.yank.append(view.substr(view.line(cur.b)))
-						
+							self.yank.append(view.substr(view.full_line(cur.b)))
+
 						points = set()
 						for cur in sel:
 							points.add(cur.b)
 						
 						for point in points:
-							view.replace(edit, view.line(point), '')
+							line = view.full_line(point)
+							view.replace(edit, line, '')
+
 					elif char == 'y':
-						pass
+						self.yank = []
+						for cur in sel:
+							self.yank.append(view.substr(view.full_line(cur.b)))
 
 					self.cmd = ''
 				else:
