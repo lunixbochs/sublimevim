@@ -263,18 +263,27 @@ class View(InsertView): # this is where the logic happens
 		elif char == 'r':
 			mode = 'replace'
 
-		elif char == 'o':
+		elif char in ('O', 'o'):
 			for cur in sel:
 				line = view.line(cur.a)
-				next = sublime.Region(line.b+1, line.b+1)
+				if char == 'o':
+					p = view.line(line.b+1).a
+				else:
+					p = line.a
+					line = view.line(p-1)
+
+				next = sublime.Region(p, p)
 
 				if view.visible_region().contains(next):
-
+					sel.subtract(cur)
 					self.insert(edit, line.b, '\n')
+					sel.add(next)
 				else:
 					self.insert(edit, line.b, '\n')
 					sel.add(next)
 				mode = 'insert'
+
+			view.run_command('reindent')
 		
 		elif char == 'v':
 			mode = 'visual'
