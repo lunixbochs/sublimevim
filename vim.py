@@ -42,19 +42,15 @@ class Wrapper(object):
 		else:
 			setattr(self.view, key, value)
 
-class View(Wrapper): # this is where the logic happens
+class InsertView(Wrapper):
 	static = {
 		'mode': 'insert',
 		'obj': None,
 		'view': None,
-		'cmd': '',
 	}
 
 	public = [
-		'command',
-		'delete_char',
-		'delete_line',
-		'edit',
+		'escape',
 		'key_escape',
 		'key_slash',
 		'key_colon',
@@ -67,17 +63,12 @@ class View(Wrapper): # this is where the logic happens
 		Wrapper.__init__(self)
 
 		self.obj = self.view = view
-		self.set_mode(self.mode)
-	
-	def edit(self):
-		return WithEdit(self)
-
-	def set_mode(self, mode):
-		self.mode = mode
-		self.obj.set_status('vim', '%s mode' % mode.upper())
+		self.set_mode()
 	
 	def natural_insert(self, string, edit=None):
 		view = self.view
+
+		lines = string.split('\n')
 
 		if not edit:
 			edit = view.begin_edit()
@@ -86,13 +77,75 @@ class View(Wrapper): # this is where the logic happens
 			return
 
 		sel = view.sel()
+		if len(lines) == len(sel):
+			inserts = lines
+		else:
+			inserts = [string]*len(sel)
+
 		for cur in sel:
+			ins = inserts.pop(0)
 			if cur.empty():
-				view.insert(edit, cur.a, string)
+				view.insert(edit, cur.a, ins)
 			else:
 				sel.subtract(cur)
 				sel.add(sublime.Region(cur.a, cur.a))
-				view.replace(edit, cur, string)
+				view.replace(edit, cur, ins)
+	
+	def escape(self):
+		window = self.window()
+		self.run_command('single_selection')
+		window.run_command('clear_fields')
+		window.run_command('hide_panel')
+		window.run_command('hide_overlay')
+		window.run_command('hide_auto_complete')
+
+	def key_escape(self, edit): self.escape()
+	def key_slash(self, edit): self.key_char(edit, '/')
+	def key_colon(self, edit): self.key_char(edit, ':')
+	def key_char(self, edit, char): self.natural_insert(char, edit)
+	def set_mode(self, *args): return
+
+class View(InsertView): # this is where the logic happens
+	static = {
+		'mode': 'command',
+		'obj': None,
+		'view': None,
+		'cmd': '',
+		'yank': [],
+		'marks': {}
+	}
+
+	public = [
+		'command',
+		'delete_char',
+		'delete_line',
+		'edit',
+		'find_replace',
+		'key_escape',
+		'key_slash',
+		'key_colon',
+		'key_char',
+		'natural_insert',
+		'set_mode'
+	]
+	
+	def edit(self):
+		return WithEdit(self)
+
+	def set_mode(self, mode=None):
+		if mode:
+			self.cmd = ''
+			self.mode = mode
+		
+		self.obj.set_status('vim', '%s mode' % self.mode.upper())
+	
+	def find_replace(self, edit, string):
+		view.run_command('single_selection')
+		sel = self.sel()
+		found = self.find(string, sel[0].b)
+		if found:
+			sel.subtract(sel[0])
+			sel.add(found)
 	
 	def delete_line(self, edit, num=1):
 		pass
@@ -145,8 +198,14 @@ class View(Wrapper): # this is where the logic happens
 				view.run_command('save')
 			
 			window.run_command('close')
+		
+		if string == 'n':
+			window.run_command('next_view')
+		
+		elif string == 'N':
+			window.run_command('prev_view')
 
-		if line:
+		if line != None:
 			point = view.text_point(line, 0)
 			
 			sel.clear()
@@ -158,18 +217,13 @@ class View(Wrapper): # this is where the logic happens
 			view.show(sel)
 	
 	def key_slash(self, edit, string):
-		sublime.set_timeout(lambda: self.window().run_command('show_panel', {'panel':'replace'}), 0)
+		self.find_replace(edit, string)
 	
 	def key_escape(self, edit):
-		window = self.window()
 		if self.mode != 'command':
 			self.set_mode('command')
 		else:
-			self.run_command('single_selection')
-			window.run_command('clear_fields')
-			window.run_command('hide_panel')
-			window.run_command('hide_overlay')
-			window.run_command('hide_auto_complete')
+			self.escape(self, edit)
 		return True
 
 	def key_char(self, edit, char):
@@ -221,6 +275,12 @@ class View(Wrapper): # this is where the logic happens
 					sel.add(next)
 				mode = 'insert'
 		
+		elif char == 'v':
+			mode = 'visual'
+
+		elif char == 'V':
+			mode = 'visual line'
+			
 		elif char == 'u':
 			view.run_command('undo')
 		
@@ -235,10 +295,31 @@ class View(Wrapper): # this is where the logic happens
 
 			self.delete_char(edit)
 
-		elif char in ('c', 'd'):
+		elif char == 'p':
+			if self.yank:
+				self.natural_insert('\n'.join(self.yank))
+		
+		elif char == 'P':
+			pass
+
+		elif char in ('c', 'd', 'y'):
 			if self.cmd:
 				if self.cmd == char:
-					print 'repeated %s' % char
+					if char == 'd':
+						self.yank = []
+						for cur in sel:
+							self.yank.append(view.substr(view.line(cur.b)))
+						
+						points = set()
+						for cur in sel:
+							points.add(cur.b)
+						
+						for point in points:
+							view.replace(edit, view.line(point), '')
+					elif char == 'y':
+						pass
+
+					self.cmd = ''
 				else:
 					self.cmd = ''
 			else:
@@ -255,6 +336,7 @@ else:
 		static = views[vid].static
 		view = views[vid] = View(views[vid].view)
 		view.static.update(static)
+		view.set_mode()
 
 class Vim(sublime_plugin.EventListener):
 	def add(self, view):
@@ -277,7 +359,7 @@ class VimBase(sublime_plugin.TextCommand):
 		view = self.view
 		vid = view.id()
 		if not vid in views:
-			view = views[vid] = View(view)
+			view = views[vid] = InsertView(view)
 		else:
 			view = views[vid]
 		
