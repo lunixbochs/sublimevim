@@ -1,7 +1,9 @@
 [
 	{ "keys": [":"], "command": "vim_colon" },
 	{ "keys": ["/"], "command": "vim_slash" },
+	{ "keys": ["$"], "command": "vim_dollar" },
 	{ "keys": ["escape"], "command": "vim_escape" },
+
 	{ "keys": ["a"], "command": "vim_a" },
 	{ "keys": ["b"], "command": "vim_b" },
 	{ "keys": ["c"], "command": "vim_c" },
@@ -53,6 +55,16 @@
 	{ "keys": ["W"], "command": "vim_w_upper" },
 	{ "keys": ["X"], "command": "vim_x_upper" },
 	{ "keys": ["Y"], "command": "vim_y_upper" },
-	{ "keys": ["Z"], "command": "vim_z_upper" }
+	{ "keys": ["Z"], "command": "vim_z_upper" },
+	{ "keys": ["0"], "command": "vim_0" },
+	{ "keys": ["1"], "command": "vim_1" },
+	{ "keys": ["2"], "command": "vim_2" },
+	{ "keys": ["3"], "command": "vim_3" },
+	{ "keys": ["4"], "command": "vim_4" },
+	{ "keys": ["5"], "command": "vim_5" },
+	{ "keys": ["6"], "command": "vim_6" },
+	{ "keys": ["7"], "command": "vim_7" },
+	{ "keys": ["8"], "command": "vim_8" },
+	{ "keys": ["9"], "command": "vim_9" }
 ]
 

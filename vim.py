@@ -93,17 +93,19 @@ class InsertView(Wrapper):
 	
 	def escape(self):
 		window = self.window()
-		self.run_command('single_selection')
-		window.run_command('clear_fields')
-		window.run_command('hide_panel')
-		window.run_command('hide_overlay')
-		window.run_command('hide_auto_complete')
+		if len(self.sel()) > 1:
+			self.run_command('single_selection')
+		else:
+			window.run_command('clear_fields')
+			window.run_command('hide_panel')
+			window.run_command('hide_overlay')
+			window.run_command('hide_auto_complete')
 
 	def key_escape(self, edit): self.escape()
 	def key_slash(self, edit): self.key_char(edit, '/')
 	def key_colon(self, edit): self.key_char(edit, ':')
 	def key_char(self, edit, char): self.natural_insert(char, edit)
-	def set_mode(self, *args): return
+	def set_mode(self, mode=None): return
 
 class View(InsertView): # this is where the logic happens
 	static = {
@@ -121,6 +123,7 @@ class View(InsertView): # this is where the logic happens
 		'delete_line',
 		'edit',
 		'escape',
+		'save',
 		'find_replace',
 		'key_escape',
 		'key_slash',
@@ -129,9 +132,6 @@ class View(InsertView): # this is where the logic happens
 		'natural_insert',
 		'set_mode'
 	]
-	
-	def edit(self):
-		return WithEdit(self)
 
 	def set_mode(self, mode=None):
 		if mode and mode != self.mode:
@@ -140,13 +140,20 @@ class View(InsertView): # this is where the logic happens
 		
 		self.obj.set_status('vim', '%s mode' % self.mode.upper())
 	
+	def edit(self):
+		return WithEdit(self)
+	
 	def find_replace(self, edit, string):
 		view.run_command('single_selection')
 		sel = self.sel()
+		print sel[0].b
 		found = self.find(string, sel[0].b)
 		if found:
 			sel.subtract(sel[0])
 			sel.add(found)
+	
+	def save(self):
+		self.run_command('save')
 	
 	def delete_line(self, edit, num=1):
 		pass
@@ -173,34 +180,37 @@ class View(InsertView): # this is where the logic happens
 
 			if start == '+': line += shift
 			else: line -= shift
+		
+		elif string == '$':
+			line = view.visible_region().b
 
-		if string.isdigit():
+		elif string.isdigit():
 			line = int(string)
 
-		if string == 'w':
+		elif string == 'w':
 			view.save()
 
-		if string == 'wq':
+		elif string == 'wq':
 			view.run_command('save')
 			window.run_command('close')
 		
-		if string == 'q!':
+		elif string == 'q!':
 			if view.is_dirty():
 				view.run_command('revert')
 			
 			window.run_command('close')
 
-		if string == 'q':
+		elif string == 'q':
 			if not view.is_dirty():
 				window.run_command('close')
 		
-		if string == 'x':
+		elif string == 'x':
 			if view.is_dirty():
 				view.run_command('save')
 			
 			window.run_command('close')
 		
-		if string == 'n':
+		elif string == 'n':
 			window.run_command('next_view')
 		
 		elif string == 'N':
@@ -221,7 +231,7 @@ class View(InsertView): # this is where the logic happens
 		self.find_replace(edit, string)
 	
 	def key_escape(self, edit):
-		if self.mode != 'command':
+		if self.mode != 'command' and len(self.sel()) == 1:
 			self.set_mode('command')
 		else:
 			self.escape()
@@ -327,6 +337,16 @@ class View(InsertView): # this is where the logic happens
 				for cur in old:
 					sel.add(cur)
 
+		elif char == 'b':
+			view.run_command('move', {'by': 'subwords', 'forward': False})
+
+		elif char == 'e':
+			view.run_command('move', {'by': 'subword_ends', 'forward':True})
+
+		elif char == 'h': view.run_command('move', {"by": "characters", "forward": False})
+		elif char == 'j': view.run_command('move', {"by": "lines", "forward": True})
+		elif char == 'k': view.run_command('move', {"by": "lines", "forward": False})
+		elif char == 'l': view.run_command('move', {"by": "characters", "forward": True})
 
 		elif char in ('c', 'd', 'y'):
 			if self.cmd:
@@ -354,8 +374,18 @@ class View(InsertView): # this is where the logic happens
 					self.cmd = ''
 			else:
 				self.cmd = char
+		elif char == '$':
+			for cur in sel:
+				sel.subtract(cur)
+				p = view.line(cur.b).b
+				sel.add(sublime.Region(p, p))
+		elif char == '0':
+			for cur in sel:
+				sel.subtract(cur)
+				p = view.line(cur.b).a
+				sel.add(sublime.Region(p, p))
 		elif char in string.digits:
-			print 'number!'
+			print 'number handling later!'
 		
 		self.set_mode(mode)
 
@@ -367,22 +397,6 @@ else:
 		view = views[vid] = View(views[vid].view)
 		view.static.update(static)
 		view.set_mode()
-
-class Vim(sublime_plugin.EventListener):
-	def add(self, view):
-		vid = view.id()
-		views[vid] = View(view)
-
-	def on_load(self, view):
-		self.add(view)
-	
-	def on_new(self, view):
-		self.add(view)
-	
-	def on_close(self, view):
-		vid = view.id()
-		if vid in views:
-			del views[vid]
 
 class VimBase(sublime_plugin.TextCommand):
 	def get_view(self):
@@ -459,56 +473,27 @@ class VimSlash(VimInsertHook):
 			view.window().show_input_panel('Search', '/', self.on_done, self.on_change, self.on_cancel)
 			return True
 
-class VimLetter(VimInsertHook):
+class VimChar(VimInsertHook):
 	def hook(self, view, edit):
-		mode = view.mode
-
 		self.get_view().key_char(edit, self.char)
 		return True
 
-		if mode == 'insert':
-			return False
+# tracks open views
+class Vim(sublime_plugin.EventListener):
+	def add(self, view):
+		vid = view.id()
+		views[vid] = View(view)
 
-		elif mode == 'replace':
-			for cur in view.sel():
-				if cur.empty():
-					next = sublime.Region(cur.a, cur.a+1)
-					if view.line(cur) == view.line(next):
-						view.erase(edit, next)
-						view.set_mode('command')
-
-		elif mode == 'command':
-
-			char = self.char
-			if char == 'a':
-				mode = 'insert'
-				sel = view.sel()
-				for cur in sel:
-					sel.subtract(cur)
-					if cur.empty():
-						sel.add(sublime.Region(cur.b+1, cur.b+1))
-					else:
-						sel.add(sublime.Region(cur.b, cur.b))
-
-			elif char == 'i':
-				mode = 'insert'
-
-			elif char == 'r':
-				mode = 'replace'
-
-			elif char == 'o':
-				for cur in view.sel():
-					if cur.empty():
-						pass
-					else:
-						pass
-
-			elif char == 'u':
-				view.run_command('undo')
-
-			view.set_mode(mode)
-			
-			return True
+	def on_load(self, view):
+		self.add(view)
+	
+	def on_new(self, view):
+		self.add(view)
+	
+	def on_close(self, view):
+		vid = view.id()
+		if vid in views:
+			del views[vid]
 
 # automatic letter classes
 def add_hook(name, cls, **kwargs):
@@ -519,4 +504,10 @@ for char in string.letters:
 	if char == char.upper():
 		name += '_upper'
 	
-	add_hook(name, VimLetter, char=char)
+	add_hook(name, VimChar, char=char)
+
+for num in string.digits:
+	name = 'Vim_' + num
+	add_hook(name, VimChar, char=num)
+
+add_hook('Vim_dollar', VimChar, char='$')
