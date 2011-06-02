@@ -115,7 +115,8 @@ class View(InsertView): # this is where the logic happens
 		'view': None,
 		'cmd': '',
 		'yank': [],
-		'marks': {}
+		'marks': {},
+		'last_find': ''
 	}
 
 	public = [
@@ -144,8 +145,38 @@ class View(InsertView): # this is where the logic happens
 	def edit(self):
 		return WithEdit(self)
 	
-	def find_replace(self, edit, string):
+	def find_replace(self, edit, string, forward=True):
+		self.last_find = string
 		view.run_command('single_selection')
+		sel = self.sel()
+		pos = sel[0].b
+
+		found = None
+		finds = self.find_all(string)
+		if not forward:
+			finds = reversed(finds)
+
+		for find in finds:
+			if not forward and find.a < pos:
+				found = find
+			elif forward and find.a > pos:
+				found = find
+			else:
+				continue
+			break
+		
+		if len(finds) > 0 and not found:
+			if forward:
+				found = finds[0]
+			else:
+				found = finds[-1]
+
+		if found:
+			sel.subtract(sel[0])
+			# region must be reversed for backwards find to work
+			found = sublime.Region(found.b, found.a)
+			self.show_at_center(found)
+			sel.add(found)
 	
 	def save(self):
 		self.run_command('save')
@@ -342,6 +373,9 @@ class View(InsertView): # this is where the logic happens
 		elif char == 'j': view.run_command('move', {"by": "lines", "forward": True})
 		elif char == 'k': view.run_command('move', {"by": "lines", "forward": False})
 		elif char == 'l': view.run_command('move', {"by": "characters", "forward": True})
+
+		elif char == 'n': self.find_replace(edit, self.last_find)
+		elif char == 'N': self.find_replace(edit, self.last_find, forward=False)
 
 		elif char in ('c', 'd', 'y'):
 			if self.cmd:
