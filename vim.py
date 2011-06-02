@@ -56,6 +56,7 @@ class InsertView(Wrapper):
 		'key_slash',
 		'key_colon',
 		'key_char',
+		'key_arrow',
 		'natural_insert',
 		'set_mode'
 	]
@@ -106,6 +107,13 @@ class InsertView(Wrapper):
 	def key_slash(self, edit): self.key_char(edit, '/')
 	def key_colon(self, edit): self.key_char(edit, ':')
 	def key_char(self, edit, char): self.natural_insert(char, edit)
+	
+	def key_arrow(self, direction):
+		if   direction == 'left':  self.run_command('move', {"by": "characters", "forward": False})
+		elif direction == 'down':  self.run_command('move', {"by": "lines", "forward": True})
+		elif direction == 'up':    self.run_command('move', {"by": "lines", "forward": False})
+		elif direction == 'right': self.run_command('move', {"by": "characters", "forward": True})
+
 	def set_mode(self, mode=None): return
 
 class View(InsertView): # this is where the logic happens
@@ -131,6 +139,7 @@ class View(InsertView): # this is where the logic happens
 		'key_slash',
 		'key_colon',
 		'key_char',
+		'key_arrow',
 		'natural_insert',
 		'set_mode'
 	]
@@ -147,7 +156,7 @@ class View(InsertView): # this is where the logic happens
 	
 	def find_replace(self, edit, string, forward=True):
 		self.last_find = string
-		view.run_command('single_selection')
+		self.run_command('single_selection')
 		sel = self.sel()
 		pos = sel[0].b
 
@@ -275,6 +284,9 @@ class View(InsertView): # this is where the logic happens
 			self.natural_insert(char, edit)
 			self.set_mode('command')
 	
+	def key_arrow(self, direction):
+		InsertView.key_arrow(self, direction)
+
 	def command(self, edit, char):
 		print 'command', char, self.cmd
 		mode = self.mode
@@ -369,10 +381,10 @@ class View(InsertView): # this is where the logic happens
 		elif char == 'e':
 			view.run_command('move', {'by': 'subword_ends', 'forward':True})
 
-		elif char == 'h': view.run_command('move', {"by": "characters", "forward": False})
-		elif char == 'j': view.run_command('move', {"by": "lines", "forward": True})
-		elif char == 'k': view.run_command('move', {"by": "lines", "forward": False})
-		elif char == 'l': view.run_command('move', {"by": "characters", "forward": True})
+		elif char == 'h': self.key_arrow('left')
+		elif char == 'j': self.key_arrow('down')
+		elif char == 'k': self.key_arrow('up')
+		elif char == 'l': self.key_arrow('right')
 
 		elif char == 'n': self.find_replace(edit, self.last_find)
 		elif char == 'N': self.find_replace(edit, self.last_find, forward=False)
@@ -509,10 +521,7 @@ class VimChar(VimInsertHook):
 
 class VimArrow(VimHook):
 	def hook(self, view, edit):
-		if self.direction   == 'left': view.run_command('move', {"by": "characters", "forward": False})
-		elif self.direction == 'down': view.run_command('move', {"by": "lines", "forward": True})
-		elif self.direction == 'up': view.run_command('move', {"by": "lines", "forward": False})
-		elif self.direction == 'right': view.run_command('move', {"by": "characters", "forward": True})
+		view.key_arrow(self.direction)
 
 # tracks open views
 class Vim(sublime_plugin.EventListener):
