@@ -133,6 +133,8 @@ class View(InsertView): # this is where the logic happens
 		'delete_line',
 		'edit',
 		'escape',
+		'increment_num',
+		'substr',
 		'save',
 		'find_replace',
 		'key_escape',
@@ -187,6 +189,45 @@ class View(InsertView): # this is where the logic happens
 			self.show_at_center(found)
 			sel.add(found)
 	
+	def increment_num(self, edit, p, by=1):
+		if self.substr(p).isdigit(): digit = True
+		elif self.substr(p-1).isdigit():
+			p -= 1
+			digit = True
+		else:
+			digit = False
+
+		if digit:
+			line = self.line(p)
+			leftmost, rightmost = p, p+1
+			for i in xrange(p-1, line.a-1, -1):
+				c = self.substr(i)
+				if c == '-':
+					leftmost = i
+					break
+				elif not c.isdigit(): break
+				leftmost = i
+			
+			for i in xrange(p+1, line.b+1):
+				if not self.substr(i).isdigit(): break
+				rightmost = i
+			
+			num = self.substr(leftmost, rightmost)
+			num = int(num) + by
+			self.replace(edit, sublime.Region(leftmost, rightmost), str(num))
+	
+	def substr(self, arg, end=None):
+		try:
+			p = int(arg)
+			if end != None:
+				end = int(end)
+			else:
+				end = p+1
+
+			return self.view.substr(sublime.Region(p, end))
+		except TypeError:
+			return self.view.substr(arg)
+
 	def save(self):
 		self.run_command('save')
 	
@@ -534,6 +575,29 @@ class VimChar(VimInsertHook):
 class VimArrow(VimHook):
 	def hook(self, view, edit):
 		view.key_arrow(self.direction)
+
+class VimCtrlA(VimHook):
+	def hook(self, view, edit):
+		print 'command: ctrl+a'
+		sel = view.sel()
+	 	if view.mode == 'command':
+			for cur in view.sel():
+				p = cur.b
+				view.increment_num(edit, p)
+		else:
+			sel.clear()
+			sel.add(view.visible_region())
+
+class VimCtrlX(VimHook):
+	def hook(self, view, edit):
+		print 'command: ctrl+x'
+		if view.mode == 'command':
+			for cur in view.sel():
+				p = cur.b
+				view.increment_num(edit, p, -1)
+		else:
+			pass
+			# dd the line
 
 # tracks open views
 class Vim(sublime_plugin.EventListener):

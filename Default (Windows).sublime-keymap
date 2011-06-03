@@ -8,6 +8,9 @@
 	{ "keys": ["up"], "command": "vim_up" },
 	{ "keys": ["right"], "command": "vim_right" },
 
+	{ "keys": ["ctrl+a"], "command": "vim_ctrl_a" },
+	{ "keys": ["ctrl+x"], "command": "vim_ctrl_x" },
+	
 	{ "keys": ["a"], "command": "vim_a" },
 	{ "keys": ["b"], "command": "vim_b" },
 	{ "keys": ["c"], "command": "vim_c" },
