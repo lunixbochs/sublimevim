@@ -321,14 +321,16 @@ class View(InsertView): # this is where the logic happens
 					line = view.line(p-1)
 
 				next = sublime.Region(p, p)
+				end = view.visible_region().b
 
-				if view.visible_region().contains(next):
-					sel.subtract(cur)
+				sel.subtract(cur)
+				if line.b < end:
 					self.insert(edit, line.b, '\n')
 					sel.add(next)
 				else:
-					self.insert(edit, line.b, '\n')
-					sel.add(next)
+					self.insert(edit, end, '\n')
+					sel.add(sublime.Region(end+1, end+1))
+
 				mode = 'insert'
 
 			view.run_command('reindent')
