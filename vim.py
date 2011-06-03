@@ -332,6 +332,16 @@ class View(InsertView): # this is where the logic happens
 				mode = 'insert'
 
 			view.run_command('reindent')
+			for cur in sel:
+				line = view.line(cur.a)
+				if char == 'o':
+					old = view.line(line.a-1)
+				else:
+					old = view.line(line.b+1)
+				
+				text = view.substr(old)
+				if not re.match('\s', text):
+					view.replace(edit, line, '')
 		
 		elif char == 'v':
 			mode = 'visual'
