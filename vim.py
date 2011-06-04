@@ -261,7 +261,7 @@ class View(InsertView): # this is where the logic happens
 			line = view.visible_region().b
 
 		elif string.isdigit():
-			line = int(string)
+			line = max(int(string) - 1, 0)
 
 		elif string == 'w':
 			self.save()
