@@ -329,157 +329,190 @@ class View(InsertView): # this is where the logic happens
 		InsertView.key_arrow(self, direction)
 
 	def command(self, edit, char):
-		print 'command', char, self.cmd
+		print 'command', self.cmd, char
 		mode = self.mode
 		view = self.view
 		sel = view.sel()
 
-		if char == 'a':
-				mode = 'insert'
-				for cur in sel:
-					sel.subtract(cur)
-					if cur.empty():
-						next = sublime.Region(cur.b+1, cur.b+1)
-					
-					if not cur.empty() or not view.line(next).contains(cur):
-						next = sublime.Region(cur.b, cur.b)
-
-					sel.add(next)
-
-		elif char == 'i':
-			mode = 'insert'
-
-		elif char == 'r':
-			mode = 'replace'
-
-		elif char in ('O', 'o'):
-			for cur in sel:
-				line = view.line(cur.a)
-				if char == 'o':
-					p = view.line(line.b+1).a
-				else:
-					p = line.a
-					line = view.line(p-1)
-
-				next = sublime.Region(p, p)
-				end = view.visible_region().b
-
-				sel.subtract(cur)
-				if line.b < end:
-					self.insert(edit, line.b, '\n')
-					sel.add(next)
-				else:
-					self.insert(edit, end, '\n')
-					sel.add(sublime.Region(end+1, end+1))
-
-				mode = 'insert'
-
-			view.run_command('reindent')
-			for cur in sel:
-				line = view.line(cur.a)
-				if char == 'o':
-					old = view.line(line.a-1)
-				else:
-					old = view.line(line.b+1)
-				
-				text = view.substr(old)
-				if not re.match('\s', text):
-					view.replace(edit, line, '')
-		
-		elif char == 'v':
-			mode = 'visual'
-
-		elif char == 'V':
-			mode = 'visual line'
-			
-		elif char == 'u':
-			view.run_command('undo')
-		
-		elif char == 'x':
-			for cur in sel:
-				if cur.empty():
-					if cur.a == view.line(cur).b:
-						prev = sublime.Region(cur.a-1, cur.a-1)
-						if view.line(prev).contains(cur):
-							sel.subtract(cur)
-							sel.add(prev)
-
-			self.delete_char(edit)
-
-		elif char == 'p':
-			if self.yank:
-				for cur in sel:
-					sel.subtract(cur)
-					p = view.full_line(cur.b).b
-					sel.add(sublime.Region(p, p))
-				self.natural_insert('\n'.join(self.yank))
-
-				for cur in sel:
-					sel.subtract(cur)
-					p = view.line(view.line(cur.b).a-1).a
-					sel.add(sublime.Region(p, p))
-		
-		elif char == 'P':
-			if self.yank:
-				old = [cur for cur in sel]
-				self.natural_insert('\n'.join(self.yank))
-
-				sel.clear()
-				for cur in old:
-					sel.add(cur)
-
-		elif char == 'b':
-			view.run_command('move', {'by': 'subwords', 'forward': False})
-
-		elif char == 'e':
-			view.run_command('move', {'by': 'subword_ends', 'forward':True})
-
-		elif char == 'h': self.key_arrow('left')
-		elif char == 'j': self.key_arrow('down')
-		elif char == 'k': self.key_arrow('up')
-		elif char == 'l': self.key_arrow('right')
-
-		elif char == 'n': self.find_replace(edit, self.last_find)
-		elif char == 'N': self.find_replace(edit, self.last_find, forward=False)
-
-		elif char in ('c', 'd', 'y'):
-			if self.cmd:
-				if self.cmd == char:
-					if char == 'd':
-						self.yank = []
-						for cur in sel:
-							self.yank.append(view.substr(view.full_line(cur.b)))
-
-						points = set()
-						for cur in sel:
-							points.add(cur.b)
+		if not self.cmd:
+			if char == 'a':
+					mode = 'insert'
+					for cur in sel:
+						sel.subtract(cur)
+						if cur.empty():
+							next = sublime.Region(cur.b+1, cur.b+1)
 						
-						for point in points:
-							line = view.full_line(point)
-							view.replace(edit, line, '')
+						if not cur.empty() or not view.line(next).contains(cur):
+							next = sublime.Region(cur.b, cur.b)
 
-					elif char == 'y':
+						sel.add(next)
+
+			elif char == 'i':
+				mode = 'insert'
+
+			elif char == 'r':
+				mode = 'replace'
+
+			elif char in ('O', 'o'):
+				for cur in sel:
+					line = view.line(cur.a)
+					if char == 'o':
+						p = view.line(line.b+1).a
+					else:
+						p = line.a
+						line = view.line(p-1)
+
+					next = sublime.Region(p, p)
+					end = view.visible_region().b
+
+					sel.subtract(cur)
+					if line.b < end:
+						self.insert(edit, line.b, '\n')
+						sel.add(next)
+					else:
+						self.insert(edit, end, '\n')
+						sel.add(sublime.Region(end+1, end+1))
+
+					mode = 'insert'
+
+				view.run_command('reindent')
+				for cur in sel:
+					line = view.line(cur.a)
+					if char == 'o':
+						old = view.line(line.a-1)
+					else:
+						old = view.line(line.b+1)
+					
+					text = view.substr(old)
+					if not re.match('\s', text):
+						view.replace(edit, line, '')
+			
+			elif char == 'v':
+				mode = 'visual'
+
+			elif char == 'V':
+				mode = 'visual line'
+				
+			elif char == 'u':
+				view.run_command('undo')
+			
+			elif char == 'x':
+				for cur in sel:
+					if cur.empty():
+						if cur.a == view.line(cur).b:
+							prev = sublime.Region(cur.a-1, cur.a-1)
+							if view.line(prev).contains(cur):
+								sel.subtract(cur)
+								sel.add(prev)
+
+				self.delete_char(edit)
+
+			elif char == 'p':
+				if self.yank:
+					for cur in sel:
+						sel.subtract(cur)
+						p = view.full_line(cur.b).b
+						sel.add(sublime.Region(p, p))
+					self.natural_insert('\n'.join(self.yank))
+
+					for cur in sel:
+						sel.subtract(cur)
+						p = view.line(view.line(cur.b).a-1).a
+						sel.add(sublime.Region(p, p))
+			
+			elif char == 'P':
+				if self.yank:
+					old = [cur for cur in sel]
+					self.natural_insert('\n'.join(self.yank))
+
+					sel.clear()
+					for cur in old:
+						sel.add(cur)
+
+			elif char == 'b':
+				view.run_command('move', {'by': 'subwords', 'forward': False})
+
+			elif char == 'e':
+				view.run_command('move', {'by': 'subword_ends', 'forward':True})
+
+			elif char == 'h': self.key_arrow('left')
+			elif char == 'j': self.key_arrow('down')
+			elif char == 'k': self.key_arrow('up')
+			elif char == 'l': self.key_arrow('right')
+
+			elif char == 'n': self.find_replace(edit, self.last_find)
+			elif char == 'N': self.find_replace(edit, self.last_find, forward=False)
+
+			elif char in ('c', 'd', 'y'):
+				self.cmd = char
+			elif char == '$':
+				for cur in sel:
+					sel.subtract(cur)
+					p = view.line(cur.b).b
+					sel.add(sublime.Region(p, p))
+			elif char == '0':
+				for cur in sel:
+					sel.subtract(cur)
+					p = view.line(cur.b).a
+					sel.add(sublime.Region(p, p))
+			elif char in string.digits:
+				print 'number handling later!'
+
+		else:
+			if self.cmd == char:
+				if char == 'd':
+					self.yank = []
+					for cur in sel:
+						self.yank.append(view.substr(view.full_line(cur.b)))
+
+					points = set()
+					for cur in sel:
+						points.add(cur.b)
+					
+					for point in points:
+						line = view.full_line(point)
+						view.replace(edit, line, '')
+
+				elif char == 'y':
+					self.yank = []
+					for cur in sel:
+						self.yank.append(view.substr(view.full_line(cur.b)))
+
+				self.cmd = ''
+			else:
+				if self.cmd in ('c', 'd', 'y'):
+					# hack to grab the partial word area for all cursors for b, e
+					if char in ('b', 'e'):
+						for cur in sel:
+							sel.subtract(cur)
+							sel.add(sublime.Region(cur.b, cur.b))
+						
+						saved = [cur for cur in sel]
+
+						if char == 'b':
+							view.run_command('move', {'by': 'subwords', 'forward':False, 'extend':True})
+						elif char == 'e':
+							view.run_command('move', {'by': 'subword_ends', 'forward':True, 'extend':True})
+
 						self.yank = []
 						for cur in sel:
-							self.yank.append(view.substr(view.full_line(cur.b)))
+							self.yank.append(view.substr(cur))
+						
+						sel.clear()
+						for cur in saved:
+							sel.add(cur)
 
-					self.cmd = ''
-				else:
-					self.cmd = ''
-			else:
-				self.cmd = char
-		elif char == '$':
-			for cur in sel:
-				sel.subtract(cur)
-				p = view.line(cur.b).b
-				sel.add(sublime.Region(p, p))
-		elif char == '0':
-			for cur in sel:
-				sel.subtract(cur)
-				p = view.line(cur.b).a
-				sel.add(sublime.Region(p, p))
-		elif char in string.digits:
-			print 'number handling later!'
+						cmd = self.cmd
+						if cmd in ('c', 'd'):
+							if char == 'b':
+								view.run_command('delete_word', {'forward': False})
+							elif char == 'e':
+								view.run_command('delete_word', {'forward': True})
+
+							if cmd == 'c':
+								mode = 'insert'
+
+				self.cmd = ''
 		
 		self.set_mode(mode)
 
